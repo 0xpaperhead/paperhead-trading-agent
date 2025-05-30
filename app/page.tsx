@@ -76,12 +76,25 @@ function truncateAddress(address: string): string {
   return `${address.slice(0, 5)}••••${address.slice(-5)}`
 }
 
+
+// TODO: soon to be replaced by a db types file
+type LogStatus = "SUCCESS" | "DANGER" | "WARNING" | "INFO" | "SECONDARY"
+type LogType = "TRANSACTION" | "SKILL_USE" | "ERROR" | "DEFAULT"
+
+interface LogEntry {
+  log_id: string
+  status: LogStatus
+  message: string
+  type: LogType
+  created_at: string
+}
+
 export default function CryptoTraderMatrix() {
-  const [logs, setLogs] = useState([
+  const [logs, setLogs] = useState<LogEntry[]>([
     {
       log_id: crypto.randomUUID(),
       status: "INFO",
-      message: "MATRIX TRADER AGENT v2.1 INITIALIZED",
+      message: "$paperhead trading agent v0.1 INITIALIZED",
       type: "DEFAULT",
       created_at: new Date().toISOString(),
     },
@@ -147,9 +160,9 @@ export default function CryptoTraderMatrix() {
         const randomLogData = newLogMessages[Math.floor(Math.random() * newLogMessages.length)]
         const newLog = {
           log_id: crypto.randomUUID(),
-          status: randomLogData.status,
+          status: randomLogData.status as LogStatus,
           message: randomLogData.message,
-          type: randomLogData.type,
+          type: randomLogData.type as LogType,
           created_at: new Date().toISOString(),
         }
         const updated = [...prev, newLog]
@@ -193,8 +206,8 @@ export default function CryptoTraderMatrix() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-6 text-center">
-            <h1 className="text-4xl font-bold text-green-300 mb-2 tracking-wider">MATRIX CRYPTO TRADER</h1>
-            <p className="text-green-500">AUTONOMOUS TRADING AGENT v2.1</p>
+            <h1 className="text-4xl font-bold text-green-300 mb-2 tracking-wider">$paperhead trading agent</h1>
+            <p className="text-green-500">AUTONOMOUS TRADING AGENT v0.1</p>
           </div>
 
           {/* Main Grid Layout */}
@@ -206,14 +219,14 @@ export default function CryptoTraderMatrix() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-green-300 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" />
-                    PERFORMANCE MATRIX
+                    PERFORMANCE GRAPH
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="h-[calc(100%-60px)] min-h-[200px] p-4 overflow-hidden">
                   <div className="w-full h-full border border-green-700/30 rounded">
                     <Chart layout={chartLayoutOptions} {...chartOptions}>
                       <Series
-                        type="area"
+                        type="line"
                         data={performanceData}
                         color="#00ff41"
                         lineColor="#00ff41"
@@ -263,11 +276,11 @@ export default function CryptoTraderMatrix() {
                       return (
                         <div
                           key={log.log_id}
-                          className={`flex items-center gap-3 p-2 mb-2 rounded border ${statusColors[log.status]} hover:bg-opacity-30 transition-all duration-200`}
+                          className={`flex items-center gap-3 p-2 mb-2 rounded border ${statusColors[log.status as LogStatus]} hover:bg-opacity-30 transition-all duration-200`}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
-                            {statusIcons[log.status]}
-                            {typeIcons[log.type]}
+                            {statusIcons[log.status as LogStatus]}
+                            {typeIcons[log.type as LogType]}
                             <span className="text-green-600 text-xs min-w-fit">
                               {new Date(log.created_at).toLocaleTimeString()}
                             </span>
@@ -365,7 +378,7 @@ export default function CryptoTraderMatrix() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="text-green-500 text-sm mb-2 block">Amount (USDC)</label>
+                    <label className="text-green-500 text-sm mb-2 block">Amount ($PAPERHEAD)</label>
                     <Input
                       type="number"
                       placeholder="0.00"
@@ -392,7 +405,7 @@ export default function CryptoTraderMatrix() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-green-300 flex items-center gap-2">
                     <Activity className="w-5 h-5" />
-                    ASSET PORTFOLIO
+                    CURRENT ASSETS
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
