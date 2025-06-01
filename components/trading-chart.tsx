@@ -1,11 +1,9 @@
 "use client"
 
-import { createChart, LineSeries, AreaSeries, IChartApi, ISeriesApi, DeepPartial, ChartOptions, Time } from "lightweight-charts"
+import { createChart, LineSeries, IChartApi, ISeriesApi, LineStyle, Time, LineData } from "lightweight-charts"
 import {
-  createContext,
   forwardRef,
   useCallback,
-  useContext,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
@@ -13,237 +11,430 @@ import {
   useState,
   ReactNode,
 } from "react"
+import { Expand, X } from "lucide-react"
+import OverlayPortal from "./ui/OverlayPortal"
 
-interface BaseApiRef {
-  isRemoved: boolean
-  api(): any
-  free?: (series: ISeriesApi<any>) => void
-}
-
-interface ChartApiRef extends BaseApiRef {
-  _api?: IChartApi
-  api(): IChartApi | undefined
-  free(series: ISeriesApi<any>): void
-  remove(): void
-}
-
-interface SeriesApiRef extends BaseApiRef {
-  _api?: ISeriesApi<any>
-  api(): ISeriesApi<any> | undefined
-  free(): void
-  remove(): void
-}
-
-interface ChartProps extends DeepPartial<ChartOptions> {
+interface ChartProps {
   children?: ReactNode
+  data: Array<{ time: string; value: number; timestamp: number }>
+  timeRange: string
+  onTimeRangeChange: (range: string) => void
+  isLoading?: boolean
+  className?: string
 }
 
 interface ChartContainerProps extends ChartProps {
   container: HTMLDivElement
-  layout?: DeepPartial<ChartOptions['layout']>
+  isFullScreen?: boolean
 }
 
-interface SeriesProps {
-  children?: ReactNode
-  data: Array<{ time: Time; value: number }>
-  type: 'line' | 'area'
-  [key: string]: any
+interface ProcessedDataPoint {
+  time: number
+  value: number
+  originalValue: number
+  percentChange: number
+  timestamp: number
+  formattedDate: string
+  hourFormat: string
 }
 
-const Context = createContext<BaseApiRef | null>(null)
+const timeRanges = [
+  { label: "24h", days: 1 },
+  { label: "7d", days: 7 },
+  { label: "1M", days: 30 },
+  { label: "3M", days: 90 },
+  { label: "1Y", days: 365 },
+  { label: "Max", days: 0 },
+]
 
 export function Chart(props: ChartProps) {
   const [container, setContainer] = useState<HTMLDivElement | null>(null)
+  const [isFullScreen, setIsFullScreen] = useState(false)
+  const [fullscreenContainer, setFullscreenContainer] = useState<HTMLDivElement | null>(null)
   const handleRef = useCallback((ref: HTMLDivElement | null) => setContainer(ref), [])
-  return (
-    <div ref={handleRef} className="w-full h-full overflow-hidden">
-      {container && <ChartContainer {...props} container={container} />}
+  const handleFullscreenRef = useCallback((ref: HTMLDivElement | null) => setFullscreenContainer(ref), [])
+  
+  // Handle ESC key to exit fullscreen
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullScreen) {
+        setIsFullScreen(false)
+      }
+    }
+    window.addEventListener('keydown', handleEscKey)
+    return () => window.removeEventListener('keydown', handleEscKey)
+  }, [isFullScreen])
+
+  const renderChartContent = (
+    containerRef: HTMLDivElement | null,
+    isFullscreenMode: boolean = false
+  ) => (
+    <div className={`relative ${isFullscreenMode ? 'w-full h-full' : 'flex-1'}`}>
+      {containerRef && (
+        <ChartContainer 
+          {...props} 
+          container={containerRef} 
+          isFullScreen={isFullscreenMode}
+        />
+      )}
     </div>
+  )
+  
+  return (
+    <>
+      <div className="flex flex-col h-full">
+        {/* Time Range Selector and Fullscreen Button */}
+        <div className="flex justify-between items-center mb-4 px-6">
+          <div className="flex gap-2">
+            {timeRanges.map(range => (
+              <button
+                key={range.label}
+                className={`px-3 py-1 text-xs rounded border transition-colors ${
+                  props.timeRange === range.label 
+                    ? "border-green-400 bg-green-900/20 text-green-300" 
+                    : "border-green-700 text-green-500 hover:border-green-500"
+                }`}
+                onClick={() => props.onTimeRangeChange(range.label)}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
+          <button 
+            onClick={() => setIsFullScreen(true)}
+            className="p-2 rounded border border-green-700 text-green-500 hover:border-green-500 hover:bg-green-900/20"
+            aria-label="Enter full screen"
+          >
+            <Expand className="w-4 h-4" />
+          </button>
+        </div>
+        
+        <div ref={handleRef} className={`flex-1 relative ${props.className || ''}`}>
+          {renderChartContent(container)}
+        </div>
+      </div>
+
+      {/* Fullscreen Portal using OverlayPortal */}
+      <OverlayPortal
+        isOpen={isFullScreen}
+        onClose={() => setIsFullScreen(false)}
+        contentClassName="w-[95vw] h-[90vh] max-w-none bg-gray-900 border border-green-500/30 rounded-lg overflow-hidden flex flex-col"
+        closeOnOutsideClick={false}
+        animation="scale"
+      >
+        {/* Fullscreen Header */}
+        <div className="p-6 flex justify-between items-center border-b border-green-500/30">
+          <div className="flex gap-2">
+            {timeRanges.map(range => (
+              <button
+                key={range.label}
+                className={`px-3 py-1 text-xs rounded border transition-colors ${
+                  props.timeRange === range.label 
+                    ? "border-green-400 bg-green-900/20 text-green-300" 
+                    : "border-green-700 text-green-500 hover:border-green-500"
+                }`}
+                onClick={() => props.onTimeRangeChange(range.label)}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
+          <button 
+            onClick={() => setIsFullScreen(false)}
+            className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-green-500"
+            aria-label="Exit full screen"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        {/* Fullscreen Chart Container */}
+        <div ref={handleFullscreenRef} className="flex-1 relative">
+          {renderChartContent(fullscreenContainer, true)}
+        </div>
+        
+        {/* Fullscreen Footer */}
+        <div className="p-4 border-t border-green-500/30 text-center">
+          <button 
+            onClick={() => setIsFullScreen(false)}
+            className="text-xs text-gray-400 hover:text-green-400"
+          >
+            Press ESC or click X to exit full screen
+          </button>
+        </div>
+      </OverlayPortal>
+    </>
   )
 }
 
 export const ChartContainer = forwardRef<IChartApi, ChartContainerProps>((props, ref) => {
-  const { children, container, layout, ...rest } = props
+  const { children, container, data, isLoading, isFullScreen = false } = props
+  const [processedData, setProcessedData] = useState<ProcessedDataPoint[]>([])
+  const [hoveredData, setHoveredData] = useState<ProcessedDataPoint | null>(null)
+  const [currentValue, setCurrentValue] = useState(0)
+  const [currentPercentage, setCurrentPercentage] = useState(0)
+  
+  // Standard TradingView API refs
+  const chartRef = useRef<IChartApi | null>(null)
+  const lineSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
 
-  const chartApiRef = useRef<ChartApiRef>({
-    isRemoved: false,
-    api(): IChartApi | undefined {
-      if (!this._api && !this.isRemoved) {
-        // Get container dimensions with proper bounds checking
-        const containerWidth = Math.max(container.clientWidth - 10, 200)
-        const containerHeight = Math.max(container.clientHeight - 10, 150)
-
-        this._api = createChart(container, {
-          ...rest,
-          layout,
-          width: containerWidth,
-          height: containerHeight,
-        })
-        this._api.timeScale().fitContent()
-      }
-      return this._api
-    },
-    free(series: ISeriesApi<any>) {
-      if (this._api && series && !this.isRemoved) {
-        try {
-          this._api.removeSeries(series)
-        } catch (error) {
-          // Ignore disposal errors
-          console.warn("Series removal failed:", error)
-        }
-      }
-    },
-    remove() {
-      if (this._api && !this.isRemoved) {
-        try {
-          this.isRemoved = true
-          this._api.remove()
-          this._api = undefined
-        } catch (error) {
-          // Ignore disposal errors
-          console.warn("Chart removal failed:", error)
-        }
-      }
-    },
-  })
-
-  useLayoutEffect(() => {
-    const currentRef = chartApiRef.current
-    const chart = currentRef.api()
-
-    const handleResize = () => {
-      if (currentRef.isRemoved || !chart) return
-
-      try {
-        // Get container dimensions with proper bounds checking
-        const containerWidth = Math.max(container.clientWidth - 10, 200)
-        const containerHeight = Math.max(container.clientHeight - 10, 150)
-
-        chart.applyOptions({
-          ...rest,
-          width: containerWidth,
-          height: containerHeight,
-        })
-      } catch (error) {
-        // Ignore resize errors on disposed charts
-        console.warn("Chart resize failed:", error)
-      }
-    }
-
-    window.addEventListener("resize", handleResize)
-    return () => {
-      window.removeEventListener("resize", handleResize)
-      currentRef.remove()
-    }
-  }, [])
-
-  useLayoutEffect(() => {
-    const currentRef = chartApiRef.current
-    if (!currentRef.isRemoved) {
-      currentRef.api()
-    }
-  }, [])
-
-  useLayoutEffect(() => {
-    const currentRef = chartApiRef.current
-    if (!currentRef.isRemoved && currentRef._api) {
-      try {
-        currentRef.api()?.applyOptions(rest)
-      } catch (error) {
-        console.warn("Chart options update failed:", error)
-      }
-    }
-  }, [])
-
-  useImperativeHandle(ref, () => chartApiRef.current.api()!, [])
-
+  // Process data to calculate percentage changes
   useEffect(() => {
-    const currentRef = chartApiRef.current
-    if (!currentRef.isRemoved && currentRef._api) {
-      try {
-        currentRef.api()?.applyOptions({ layout })
-      } catch (error) {
-        console.warn("Chart layout update failed:", error)
+    if (data.length > 0) {
+      const baseValue = data[0].value
+      const processed = data.map(item => ({
+        time: item.timestamp * 1000,
+        value: Math.max(-100, ((item.value - baseValue) / baseValue) * 100),
+        originalValue: item.value,
+        percentChange: Math.max(-100, ((item.value - baseValue) / baseValue) * 100),
+        timestamp: item.timestamp,
+        formattedDate: new Date(item.timestamp * 1000).toLocaleDateString("default", { 
+          month: "short", 
+          day: "numeric" 
+        }),
+        hourFormat: new Date(item.timestamp * 1000).toLocaleTimeString("default", { 
+          hour: "2-digit", 
+          minute: "2-digit", 
+          hour12: false 
+        }),
+      }))
+      
+      setProcessedData(processed)
+      setCurrentValue(data[data.length - 1].value)
+      setCurrentPercentage(processed[processed.length - 1].percentChange)
+    }
+  }, [data])
+
+  // Initialize chart when container changes
+  useLayoutEffect(() => {
+    // Clean up existing chart
+    if (chartRef.current) {
+      chartRef.current.remove()
+      chartRef.current = null
+      lineSeriesRef.current = null
+    }
+
+    // Get container dimensions
+    const containerWidth = container.clientWidth || (isFullScreen ? window.innerWidth * 0.95 : 800)
+    const containerHeight = container.clientHeight || (isFullScreen ? window.innerHeight * 0.8 : 400)
+
+    // Only create chart if container has valid dimensions
+    if (containerWidth > 0 && containerHeight > 0) {
+      const chart = createChart(container, {
+        width: containerWidth,
+        height: containerHeight,
+        layout: {
+          background: { color: "transparent" },
+          textColor: "#22c55e",
+        },
+        grid: {
+          vertLines: { color: "#22c55e", style: 1, visible: true },
+          horzLines: { color: "#22c55e", style: 1, visible: true },
+        },
+        crosshair: {
+          mode: 1,
+          vertLine: { visible: true, labelVisible: false },
+          horzLine: { visible: true, labelVisible: false },
+        },
+        rightPriceScale: {
+          borderColor: "#22c55e",
+          scaleMargins: { top: 0.1, bottom: 0.1 },
+          mode: 0,
+          autoScale: true,
+        },
+        timeScale: {
+          borderColor: "#22c55e",
+          timeVisible: true,
+          secondsVisible: false,
+        },
+      })
+
+      chartRef.current = chart
+
+      // Setup resize observer
+      resizeObserverRef.current = new ResizeObserver(entries => {
+        if (chartRef.current && entries[0]) {
+          try {
+            const entry = entries[0]
+            const width = entry.contentRect.width
+            const height = entry.contentRect.height
+            
+            if (width > 0 && height > 0) {
+              chartRef.current.applyOptions({ width, height })
+            }
+          } catch (error) {
+            console.warn("Chart resize failed:", error)
+          }
+        }
+      })
+
+      resizeObserverRef.current.observe(container)
+    }
+
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect()
+        resizeObserverRef.current = null
+      }
+      if (chartRef.current) {
+        chartRef.current.remove()
+        chartRef.current = null
+        lineSeriesRef.current = null
       }
     }
-  }, [layout])
+  }, [container, isFullScreen])
 
-  return <Context.Provider value={chartApiRef.current}>{children}</Context.Provider>
+  // Update chart data when processedData changes
+  useLayoutEffect(() => {
+    if (!chartRef.current || processedData.length === 0) return
+
+    // Prepare chart data
+    const uniqueChartPoints = new Map()
+    processedData.forEach(item => {
+      uniqueChartPoints.set(item.time, {
+        time: item.time,
+        value: item.value
+      })
+    })
+
+    const chartPoints = Array.from(uniqueChartPoints.values())
+    chartPoints.sort((a, b) => a.time - b.time)
+
+    const lastValue = chartPoints[chartPoints.length - 1]?.value || 0
+
+    // Create or update series
+    if (!lineSeriesRef.current) {
+      // Create new series
+      lineSeriesRef.current = chartRef.current.addSeries(LineSeries, {
+        color: lastValue >= 0 ? "#10b981" : "#ef4444",
+        lineWidth: 2,
+        priceScaleId: "right",
+        priceFormat: { 
+          type: "custom", 
+          formatter: (price: number) => `${price.toFixed(1)}%`
+        },
+      })
+
+      // Add zero line
+      lineSeriesRef.current.createPriceLine({ 
+        price: 0, 
+        color: "#6b7280", 
+        lineWidth: 1, 
+        lineStyle: LineStyle.Dashed 
+      })
+
+      // Subscribe to crosshair move for tooltip
+      chartRef.current.subscribeCrosshairMove(param => {
+        if (!param.point || !param.time || !tooltipRef.current) {
+          if (tooltipRef.current) {
+            tooltipRef.current.style.display = "none"
+          }
+          setHoveredData(null)
+          return
+        }
+
+        if (param.point.x < 0 || param.point.x > container.clientWidth || 
+            param.point.y < 0 || param.point.y > container.clientHeight) {
+          tooltipRef.current.style.display = "none"
+          setHoveredData(null)
+          return
+        }
+
+        const closestPoint = processedData.reduce((prev, curr) =>
+          Math.abs(curr.timestamp - Math.floor(Number(param.time) / 1000)) < 
+          Math.abs(prev.timestamp - Math.floor(Number(param.time) / 1000)) ? curr : prev
+        )
+
+        tooltipRef.current.style.display = "block"
+        tooltipRef.current.style.left = `${param.point.x}px`
+        tooltipRef.current.style.top = `${param.point.y}px`
+        setHoveredData(closestPoint)
+      })
+    } else {
+      // Update existing series color
+      lineSeriesRef.current.applyOptions({
+        color: lastValue >= 0 ? "#10b981" : "#ef4444",
+      })
+    }
+
+    // Set data using standard API
+    lineSeriesRef.current.setData(chartPoints as LineData<Time>[])
+    chartRef.current.timeScale().fitContent()
+  }, [processedData, container])
+
+  useImperativeHandle(ref, () => chartRef.current!, [])
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value)
+  }
+
+  const formatPercent = (value: number) => {
+    return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-green-500">Loading performance data...</div>
+      </div>
+    )
+  }
+
+  if (processedData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-center text-green-600">
+        <div>
+          <p className="font-medium">No data available</p>
+          <p className="text-sm">Please try a different timeframe</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative w-full h-full">
+      {/* Performance Display */}
+      <div className="absolute top-2 left-2 p-2 rounded bg-black/80 z-10">
+        <div className={`font-medium ${currentPercentage >= 0 ? "text-green-400" : "text-red-400"}`}>
+          {formatPercent(currentPercentage)}
+        </div>
+        <div className="text-xs text-green-500">
+          {formatCurrency(currentValue)}
+        </div>
+      </div>
+      
+      {/* Tooltip */}
+      <div 
+        ref={tooltipRef}
+        className="absolute p-2 border shadow-sm rounded max-w-xs z-10 transform -translate-x-1/2 pointer-events-none bg-black/90 border-green-500/50"
+        style={{ display: "none" }}
+      >
+        {hoveredData && (
+          <>
+            <p className="text-xs mb-1 text-green-400">
+              {new Date(hoveredData.timestamp * 1000).toLocaleString()}
+            </p>
+            <p className={`font-medium text-lg mb-1 ${
+              hoveredData.percentChange >= 0 ? "text-green-400" : "text-red-400"
+            }`}>
+              {formatPercent(hoveredData.percentChange)}
+            </p>
+            <p className="text-xs text-green-500">
+              {formatCurrency(hoveredData.originalValue)}
+            </p>
+          </>
+        )}
+      </div>
+
+      {children}
+    </div>
+  )
 })
 ChartContainer.displayName = "ChartContainer"
-
-export const Series = forwardRef<ISeriesApi<any>, SeriesProps>((props, ref) => {
-  const parent = useContext(Context)
-  const context = useRef<SeriesApiRef>({
-    isRemoved: false,
-    api(): ISeriesApi<any> | undefined {
-      if (!this._api && !this.isRemoved && parent && !parent.isRemoved) {
-        try {
-          const { children, data, type, ...rest } = props
-          const parentApi = parent.api()
-          if (parentApi) {
-            this._api = type === "line" 
-              ? parentApi.addSeries(LineSeries, rest) 
-              : parentApi.addSeries(AreaSeries, rest)
-            if (this._api) {
-              this._api.setData(data)
-            }
-          }
-        } catch (error) {
-          console.warn("Series creation failed:", error)
-        }
-      }
-      return this._api
-    },
-    free() {
-      if (this._api && !this.isRemoved && parent && !parent.isRemoved) {
-        try {
-          this.isRemoved = true
-          if (parent.free) {
-            parent.free(this._api)
-          }
-          this._api = undefined
-        } catch (error) {
-          console.warn("Series cleanup failed:", error)
-        }
-      }
-    },
-    remove() {
-      if (this._api && !this.isRemoved && parent && !parent.isRemoved) {
-        try {
-          this.isRemoved = true
-          if (parent.free) {
-            parent.free(this._api)
-          }
-          this._api = undefined
-        } catch (error) {
-          console.warn("Series cleanup failed:", error)
-        }
-      }
-    },
-  })
-
-  useLayoutEffect(() => {
-    const currentRef = context.current
-    currentRef.api()
-
-    return () => currentRef.free()
-  }, [])
-
-  useLayoutEffect(() => {
-    const currentRef = context.current
-    if (!currentRef.isRemoved && currentRef._api) {
-      try {
-        const { children, data, ...rest } = props
-        currentRef.api()?.applyOptions(rest)
-      } catch (error) {
-        console.warn("Series options update failed:", error)
-      }
-    }
-  })
-
-  useImperativeHandle(ref, () => context.current.api()!, [])
-
-  return <Context.Provider value={context.current}>{props.children}</Context.Provider>
-})
-Series.displayName = "Series"

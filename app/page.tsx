@@ -23,61 +23,17 @@ import {
   RotateCcw,
   ExternalLink,
 } from "lucide-react"
-import { Chart, Series } from "@/components/trading-chart"
+import { Chart } from "@/components/trading-chart"
+import {
+  fetchPerformanceData,
+  fetchAgentStats,
+  fetchTradedAssets,
+  fetchAgentLogs,
+  depositToAgent,
+  withdrawFromAgent
+} from "./actions"
 
-const performanceData = [
-  { time: "2024-01-01", value: 100 },
-  { time: "2024-01-02", value: 125 },
-  { time: "2024-01-03", value: 110 },
-  { time: "2024-01-04", value: 145 },
-  { time: "2024-01-05", value: 160 },
-  { time: "2024-01-06", value: 175 },
-  { time: "2024-01-07", value: 190 },
-]
-
-const tradedAssets = [
-  {
-    name: "Bitcoin",
-    ticker: "BTC",
-    allocation: 45.2,
-    return: 12.5,
-    tokenAddress: "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/640px-Bitcoin.svg.png",
-  },
-  {
-    name: "Ethereum",
-    ticker: "ETH",
-    allocation: 32.1,
-    return: 8.2,
-    tokenAddress: "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
-    image:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Ethereum-icon-purple.svg/640px-Ethereum-icon-purple.svg.png",
-  },
-  {
-    name: "Solana",
-    ticker: "SOL",
-    allocation: 18.7,
-    return: -2.1,
-    tokenAddress: "So11111111111111111111111111111111111111112",
-    image: "https://upload.wikimedia.org/wikipedia/en/b/b9/Solana_logo.png",
-  },
-  {
-    name: "USD Coin",
-    ticker: "USDC",
-    allocation: 4.0,
-    return: 0,
-    tokenAddress: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    image:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Circle_USDC_Logo.svg/640px-Circle_USDC_Logo.svg.png",
-  },
-]
-
-function truncateAddress(address: string): string {
-  return `${address.slice(0, 5)}••••${address.slice(-5)}`
-}
-
-
-// TODO: soon to be replaced by a db types file
+// Types
 type LogStatus = "SUCCESS" | "DANGER" | "WARNING" | "INFO" | "SECONDARY"
 type LogType = "TRANSACTION" | "SKILL_USE" | "ERROR" | "DEFAULT"
 
@@ -89,89 +45,183 @@ interface LogEntry {
   created_at: string
 }
 
+interface PerformanceDataPoint {
+  time: string
+  value: number
+  timestamp: number
+}
+
+interface AgentStats {
+  status: string
+  uptime: string
+  totalTrades: number
+  successRate: number
+  totalProfit: number
+  averageVolume: number
+  tvl: number
+}
+
+interface TradedAsset {
+  name: string
+  ticker: string
+  allocation: number
+  return: number
+  tokenAddress: string
+  image: string
+}
+
+function truncateAddress(address: string): string {
+  return `${address.slice(0, 5)}••••${address.slice(-5)}`
+}
+
 export default function CryptoTraderMatrix() {
-  const [logs, setLogs] = useState<LogEntry[]>([
-    {
-      log_id: crypto.randomUUID(),
-      status: "INFO",
-      message: "$paperhead trading agent v0.1 INITIALIZED",
-      type: "DEFAULT",
-      created_at: new Date().toISOString(),
-    },
-    {
-      log_id: crypto.randomUUID(),
-      status: "INFO",
-      message: "Connecting to blockchain networks...",
-      type: "DEFAULT",
-      created_at: new Date().toISOString(),
-    },
-    {
-      log_id: crypto.randomUUID(),
-      status: "SUCCESS",
-      message: "ETH network: CONNECTED",
-      type: "DEFAULT",
-      created_at: new Date().toISOString(),
-    },
-    {
-      log_id: crypto.randomUUID(),
-      status: "SUCCESS",
-      message: "SOL network: CONNECTED",
-      type: "DEFAULT",
-      created_at: new Date().toISOString(),
-    },
-    {
-      log_id: crypto.randomUUID(),
-      status: "SUCCESS",
-      message: "BTC network: CONNECTED",
-      type: "DEFAULT",
-      created_at: new Date().toISOString(),
-    },
-    {
-      log_id: crypto.randomUUID(),
-      status: "SUCCESS",
-      message: "Agent status: ACTIVE",
-      type: "DEFAULT",
-      created_at: new Date().toISOString(),
-    },
-    {
-      log_id: crypto.randomUUID(),
-      status: "INFO",
-      message: "Scanning for arbitrage opportunities...",
-      type: "SKILL_USE",
-      created_at: new Date().toISOString(),
-    },
-  ])
-
+  // State
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [performanceData, setPerformanceData] = useState<PerformanceDataPoint[]>([])
+  const [agentStats, setAgentStats] = useState<AgentStats | null>(null)
+  const [tradedAssets, setTradedAssets] = useState<TradedAsset[]>([])
   const [depositAmount, setDepositAmount] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [isDepositing, setIsDepositing] = useState(false)
+  const [isWithdrawing, setIsWithdrawing] = useState(false)
+  const [timeRange, setTimeRange] = useState("7d")
 
+  // Fetch initial data
   useEffect(() => {
-    const interval = setInterval(() => {
-      const newLogMessages = [
-        { message: "Analyzing market conditions...", status: "INFO", type: "SKILL_USE" },
-        { message: "Opportunity detected: ETH/USDC spread 0.23%", status: "WARNING", type: "SKILL_USE" },
-        { message: "Executing trade: BUY 2.5 ETH @ $1,234.56", status: "INFO", type: "TRANSACTION" },
-        { message: "Trade completed successfully", status: "SUCCESS", type: "TRANSACTION" },
-        { message: "Portfolio rebalanced", status: "SUCCESS", type: "DEFAULT" },
-        { message: "Profit realized: +$127.89", status: "SUCCESS", type: "TRANSACTION" },
-        { message: "Monitoring next opportunity...", status: "INFO", type: "SKILL_USE" },
-      ]
+    const initializeData = async () => {
+      setIsLoading(true)
+      try {
+        // Fetch all data in parallel
+        const [performanceRes, statsRes, assetsRes, logsRes] = await Promise.all([
+          fetchPerformanceData(timeRange),
+          fetchAgentStats(),
+          fetchTradedAssets(),
+          fetchAgentLogs(10)
+        ])
 
-      setLogs((prev) => {
-        const randomLogData = newLogMessages[Math.floor(Math.random() * newLogMessages.length)]
-        const newLog = {
-          log_id: crypto.randomUUID(),
-          status: randomLogData.status as LogStatus,
-          message: randomLogData.message,
-          type: randomLogData.type as LogType,
-          created_at: new Date().toISOString(),
+        if (performanceRes.success) {
+          setPerformanceData(performanceRes.data)
         }
-        const updated = [...prev, newLog]
-        return updated.slice(-10) // Keep only last 10 logs
-      })
-    }, 3000)
+
+        if (statsRes.success) {
+          setAgentStats(statsRes.data)
+        }
+
+        if (assetsRes.success) {
+          setTradedAssets(assetsRes.data)
+        }
+
+        if (logsRes.success) {
+          setLogs(logsRes.data)
+        }
+      } catch (error) {
+        console.error("Error fetching initial data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    initializeData()
+  }, [timeRange])
+
+  // Periodic updates for logs and assets
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        // Fetch fresh logs and assets
+        const [logsRes, assetsRes] = await Promise.all([
+          fetchAgentLogs(10),
+          fetchTradedAssets()
+        ])
+
+        if (logsRes.success) {
+          setLogs(logsRes.data)
+        }
+
+        if (assetsRes.success) {
+          setTradedAssets(assetsRes.data)
+        }
+      } catch (error) {
+        console.error("Error updating data:", error)
+      }
+    }, 5000) // Update every 5 seconds
 
     return () => clearInterval(interval)
   }, [])
+
+  // Handle deposit
+  const handleDeposit = async () => {
+    if (!depositAmount || isDepositing) return
+
+    setIsDepositing(true)
+    try {
+      const result = await depositToAgent(parseFloat(depositAmount))
+      
+      if (result.success) {
+        setDepositAmount("")
+        // Add success log
+        const newLog: LogEntry = {
+          log_id: crypto.randomUUID(),
+          status: "SUCCESS",
+          message: result.message,
+          type: "TRANSACTION",
+          created_at: new Date().toISOString(),
+        }
+        setLogs(prev => [...prev, newLog].slice(-10))
+      } else {
+        // Add error log
+        const newLog: LogEntry = {
+          log_id: crypto.randomUUID(),
+          status: "DANGER",
+          message: result.error || "Deposit failed",
+          type: "ERROR",
+          created_at: new Date().toISOString(),
+        }
+        setLogs(prev => [...prev, newLog].slice(-10))
+      }
+    } catch (error) {
+      console.error("Deposit error:", error)
+    } finally {
+      setIsDepositing(false)
+    }
+  }
+
+  // Handle withdrawal
+  const handleWithdraw = async () => {
+    if (!depositAmount || isWithdrawing) return
+
+    setIsWithdrawing(true)
+    try {
+      const result = await withdrawFromAgent(parseFloat(depositAmount))
+      
+      if (result.success) {
+        setDepositAmount("")
+        // Add success log
+        const newLog: LogEntry = {
+          log_id: crypto.randomUUID(),
+          status: "SUCCESS",
+          message: result.message,
+          type: "TRANSACTION",
+          created_at: new Date().toISOString(),
+        }
+        setLogs(prev => [...prev, newLog].slice(-10))
+      } else {
+        // Add error log
+        const newLog: LogEntry = {
+          log_id: crypto.randomUUID(),
+          status: "DANGER",
+          message: result.error || "Withdrawal failed",
+          type: "ERROR",
+          created_at: new Date().toISOString(),
+        }
+        setLogs(prev => [...prev, newLog].slice(-10))
+      }
+    } catch (error) {
+      console.error("Withdrawal error:", error)
+    } finally {
+      setIsWithdrawing(false)
+    }
+  }
 
   const chartLayoutOptions = {
     background: {
@@ -196,6 +246,8 @@ export default function CryptoTraderMatrix() {
       timeVisible: true,
     },
   }
+
+  const timeRanges = ["24h", "7d", "1M", "3M", "1Y", "Max"]
 
   return (
     <>
@@ -222,20 +274,18 @@ export default function CryptoTraderMatrix() {
                     PERFORMANCE GRAPH
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="h-[calc(100%-60px)] min-h-[200px] p-4 overflow-hidden">
-                  <div className="w-full h-full border border-green-700/30 rounded">
-                    <Chart layout={chartLayoutOptions} {...chartOptions}>
-                      <Series
-                        type="line"
-                        data={performanceData}
-                        color="#00ff41"
-                        lineColor="#00ff41"
-                        topColor="rgba(0, 255, 65, 0.4)"
-                        bottomColor="rgba(0, 255, 65, 0.0)"
-                        lineWidth={2}
-                      />
-                    </Chart>
-                  </div>
+                <CardContent className="h-[calc(100%-100px)] min-h-[200px] p-4 overflow-hidden">
+                  {isLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-green-500">Loading performance data...</div>
+                    </div>
+                  ) : (
+                    <Chart 
+                      data={performanceData} 
+                      timeRange={timeRange}
+                      onTimeRangeChange={setTimeRange}
+                    />
+                  )}
                 </CardContent>
               </Card>
 
@@ -248,7 +298,7 @@ export default function CryptoTraderMatrix() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="h-[calc(100%-60px)] min-h-[200px] p-4 overflow-hidden flex flex-col">
-                  <div className="bg-gray-900/90 border border-green-500 rounded p-4 flex-1 overflow-y-auto">
+                  <div className="bg-black rounded p-4 flex-1 overflow-y-auto">
                     {logs.map((log) => {
                       const statusIcons = {
                         SUCCESS: <CheckCircle className="w-4 h-4 text-green-400" />,
@@ -276,11 +326,11 @@ export default function CryptoTraderMatrix() {
                       return (
                         <div
                           key={log.log_id}
-                          className={`flex items-center gap-3 p-2 mb-2 rounded border ${statusColors[log.status as LogStatus]} hover:bg-opacity-30 transition-all duration-200`}
+                          className={`flex items-center gap-3 p-2 mb-2 rounded border ${statusColors[log.status]} hover:bg-opacity-30 transition-all duration-200`}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
-                            {statusIcons[log.status as LogStatus]}
-                            {typeIcons[log.type as LogType]}
+                            {statusIcons[log.status]}
+                            {typeIcons[log.type]}
                             <span className="text-green-600 text-xs min-w-fit">
                               {new Date(log.created_at).toLocaleTimeString()}
                             </span>
@@ -316,6 +366,7 @@ export default function CryptoTraderMatrix() {
                         variant="outline"
                         size="sm"
                         className="bg-transparent border-green-500 text-green-400 hover:bg-green-900/20"
+                        onClick={() => fetchAgentLogs(10).then(res => res.success && setLogs(res.data))}
                       >
                         <RotateCcw className="w-4 h-4" />
                       </Button>
@@ -337,34 +388,40 @@ export default function CryptoTraderMatrix() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-green-500">Status:</span>
-                    <Badge className="bg-green-900 text-green-300 border-green-500">ACTIVE</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-500">Uptime:</span>
-                    <span className="text-green-300">72h 14m</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-500">Total Trades:</span>
-                    <span className="text-green-300">1,247</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-500">Success Rate:</span>
-                    <span className="text-green-300">94.2%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-500">Total Profit:</span>
-                    <span className="text-green-300">+$12,456.78</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-500">Average Volume:</span>
-                    <span className="text-green-300">$45,892/day</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-500">TVL:</span>
-                    <span className="text-green-300">$2,847,563</span>
-                  </div>
+                  {agentStats ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-green-500">Status:</span>
+                        <Badge className="bg-green-900 text-green-300 border-green-500">{agentStats.status}</Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-green-500">Uptime:</span>
+                        <span className="text-green-300">{agentStats.uptime}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-green-500">Total Trades:</span>
+                        <span className="text-green-300">{agentStats.totalTrades.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-green-500">Success Rate:</span>
+                        <span className="text-green-300">{agentStats.successRate}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-green-500">Total Profit:</span>
+                        <span className="text-green-300">+${agentStats.totalProfit.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-green-500">Average Volume:</span>
+                        <span className="text-green-300">${agentStats.averageVolume.toLocaleString()}/day</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-green-500">TVL:</span>
+                        <span className="text-green-300">${agentStats.tvl.toLocaleString()}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-green-500">Loading stats...</div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -385,17 +442,24 @@ export default function CryptoTraderMatrix() {
                       value={depositAmount}
                       onChange={(e) => setDepositAmount(e.target.value)}
                       className="bg-gray-900/90 border-green-500 text-green-300 placeholder-green-600"
+                      disabled={isDepositing || isWithdrawing}
                     />
                   </div>
-                  <Button className="w-full bg-green-900 hover:bg-green-800 text-green-300 border border-green-500">
+                  <Button 
+                    className="w-full bg-green-900 hover:bg-green-800 text-green-300 border border-green-500"
+                    onClick={handleDeposit}
+                    disabled={isDepositing || isWithdrawing || !depositAmount}
+                  >
                     <Wallet className="w-4 h-4 mr-2" />
-                    DEPOSIT TO AGENT
+                    {isDepositing ? "DEPOSITING..." : "DEPOSIT TO AGENT"}
                   </Button>
                   <Button
                     variant="outline"
                     className="w-full bg-orange-300 border-green-500 text-green-700 hover:bg-green-900 hover:text-green-300"
+                    onClick={handleWithdraw}
+                    disabled={isDepositing || isWithdrawing || !depositAmount}
                   >
-                    WITHDRAW FUNDS
+                    {isWithdrawing ? "WITHDRAWING..." : "WITHDRAW FUNDS"}
                   </Button>
                 </CardContent>
               </Card>
@@ -410,7 +474,7 @@ export default function CryptoTraderMatrix() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {tradedAssets.map((asset, index) => (
-                    <div key={index} className="border border-green-700 rounded p-3 bg-gray-900/90">
+                    <div key={index} className="border border-green-700 rounded p-3 bg-black">
                       <div className="flex items-center gap-3 mb-2">
                         <img
                           src={asset.image || "/placeholder.svg"}
@@ -424,7 +488,7 @@ export default function CryptoTraderMatrix() {
                               className={`text-sm ${asset.return > 0 ? "text-green-400" : asset.return < 0 ? "text-red-400" : "text-gray-400"}`}
                             >
                               {asset.return > 0 ? "+" : ""}
-                              {asset.return}%
+                              {asset.return.toFixed(1)}%
                             </span>
                           </div>
                           <div className="text-sm text-green-500">{asset.name}</div>
@@ -455,7 +519,7 @@ export default function CryptoTraderMatrix() {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-green-500 hover:text-green-300 transition-colors"
-                              title="View on DexScreener"
+                              title="View on Dex Screener"
                             >
                               <ExternalLink className="w-3 h-3" />
                             </a>
