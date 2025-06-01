@@ -274,13 +274,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Shadcn/ui** for beautiful UI components
 - **TradingView** for charting inspiration
 
-## 📞 Support
-
-- **Documentation**: [Link to docs]
-- **Discord**: [Discord invite link]
-- **Twitter**: [@paperhead_agent]
-- **Email**: support@paperhead.ai
-
 ---
 
 **⚠️ Disclaimer**: This trading agent involves financial risk. Only trade with funds you can afford to lose. Past performance does not guarantee future results. Always do your own research before making investment decisions. 
