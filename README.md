@@ -2,7 +2,7 @@
 
 An autonomous cryptocurrency trading agent with a Matrix-themed dashboard interface. This AI-powered trading bot operates on Solana blockchain, providing real-time portfolio management, automated trading, and comprehensive performance analytics.
 
-![Trading Agent Dashboard](https://img.shields.io/badge/Status-Active-green)
+![Trading Agent Dashboard](https://img.shields.io/badge/Status-WIP-orange)
 ![Version](https://img.shields.io/badge/Version-0.1-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
