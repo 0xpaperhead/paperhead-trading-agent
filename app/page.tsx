@@ -23,7 +23,7 @@ import {
   RotateCcw,
   ExternalLink,
 } from "lucide-react"
-import { Chart } from "@/components/trading-chart"
+import { TradingChart } from "@/components/trading-chart"
 import {
   fetchPerformanceData,
   fetchAgentStats,
@@ -32,43 +32,7 @@ import {
   depositToAgent,
   withdrawFromAgent
 } from "./actions"
-
-// Types
-type LogStatus = "SUCCESS" | "DANGER" | "WARNING" | "INFO" | "SECONDARY"
-type LogType = "TRANSACTION" | "SKILL_USE" | "ERROR" | "DEFAULT"
-
-interface LogEntry {
-  log_id: string
-  status: LogStatus
-  message: string
-  type: LogType
-  created_at: string
-}
-
-interface PerformanceDataPoint {
-  time: string
-  value: number
-  timestamp: number
-}
-
-interface AgentStats {
-  status: string
-  uptime: string
-  totalTrades: number
-  successRate: number
-  totalProfit: number
-  averageVolume: number
-  tvl: number
-}
-
-interface TradedAsset {
-  name: string
-  ticker: string
-  allocation: number
-  return: number
-  tokenAddress: string
-  image: string
-}
+import { PerformanceDataPoint, AgentStats, TradedAsset, LogEntry } from "@/types/types"
 
 function truncateAddress(address: string): string {
   return `${address.slice(0, 5)}••••${address.slice(-5)}`
@@ -156,7 +120,7 @@ export default function CryptoTraderMatrix() {
     setIsDepositing(true)
     try {
       const result = await depositToAgent(parseFloat(depositAmount))
-      
+
       if (result.success) {
         setDepositAmount("")
         // Add success log
@@ -193,7 +157,7 @@ export default function CryptoTraderMatrix() {
     setIsWithdrawing(true)
     try {
       const result = await withdrawFromAgent(parseFloat(depositAmount))
-      
+
       if (result.success) {
         setDepositAmount("")
         // Add success log
@@ -267,21 +231,23 @@ export default function CryptoTraderMatrix() {
             {/* Left Column - Performance Graph and Terminal */}
             <div className="lg:col-span-2 space-y-4">
               {/* Performance Graph */}
-              <Card className="bg-black/80 border-green-500 border-2 h-1/2">
+              <Card className="bg-black/80 border-green-500 border-2">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-green-300 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" />
                     PERFORMANCE GRAPH
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="h-[calc(100%-100px)] min-h-[200px] p-4 overflow-hidden">
+                <CardContent className="p-0 h-full pt-4 overflow-hidden">
                   {isLoading ? (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-green-500">Loading performance data...</div>
+                    <div className="flex items-center justify-center text-center text-green-500 h-52 animate-pulse">
+                      <span className="text-center">
+                        Loading performance data...
+                      </span>
                     </div>
                   ) : (
-                    <Chart 
-                      data={performanceData} 
+                    <TradingChart
+                      data={performanceData}
                       timeRange={timeRange}
                       onTimeRangeChange={setTimeRange}
                     />
@@ -445,7 +411,7 @@ export default function CryptoTraderMatrix() {
                       disabled={isDepositing || isWithdrawing}
                     />
                   </div>
-                  <Button 
+                  <Button
                     className="w-full bg-green-900 hover:bg-green-800 text-green-300 border border-green-500"
                     onClick={handleDeposit}
                     disabled={isDepositing || isWithdrawing || !depositAmount}
@@ -531,9 +497,9 @@ export default function CryptoTraderMatrix() {
                 </CardContent>
               </Card>
             </div>
-          </div>
-        </div>
-      </div>
+          </div >
+        </div >
+      </div >
     </>
   )
 }
