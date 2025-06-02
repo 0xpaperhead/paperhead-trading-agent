@@ -237,6 +237,9 @@ export default function CryptoTraderMatrix() {
                     <TrendingUp className="w-5 h-5" />
                     PERFORMANCE GRAPH
                   </CardTitle>
+                  <p className="text-green-500 text-sm">
+                    Only mock data is shown.
+                  </p>
                 </CardHeader>
                 <CardContent className="p-0 h-full pt-4 overflow-hidden">
                   {isLoading ? (
