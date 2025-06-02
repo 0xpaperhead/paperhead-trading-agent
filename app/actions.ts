@@ -1,50 +1,8 @@
 "use server"
 
-// Types based on your example
-interface PortfolioPosition {
-  unique_token_identifier: string
-  ecosystem_id: string
-  position: number
-  token_price: number
-  relative_portfolio_allocation: number
-  value: number
-  image: string
-  symbol: string
-}
+import { PortfolioPosition, PerformanceDataPoint, AgentStats, TradedAsset, LogEntry } from "@/types/types"
 
-interface PerformanceDataPoint {
-  time: string
-  value: number
-  timestamp: number
-  portfolio_positions: PortfolioPosition[]
-}
 
-interface AgentStats {
-  status: string
-  uptime: string
-  totalTrades: number
-  successRate: number
-  totalProfit: number
-  averageVolume: number
-  tvl: number
-}
-
-interface TradedAsset {
-  name: string
-  ticker: string
-  allocation: number
-  return: number
-  tokenAddress: string
-  image: string
-}
-
-interface LogEntry {
-  log_id: string
-  status: "SUCCESS" | "DANGER" | "WARNING" | "INFO" | "SECONDARY"
-  message: string
-  type: "TRANSACTION" | "SKILL_USE" | "ERROR" | "DEFAULT"
-  created_at: string
-}
 
 // Mock data generators
 const generatePortfolioPositions = (): PortfolioPosition[] => [
@@ -60,7 +18,7 @@ const generatePortfolioPositions = (): PortfolioPosition[] => [
   },
   {
     unique_token_identifier: "eth",
-    ecosystem_id: "ethereum", 
+    ecosystem_id: "ethereum",
     position: 12.5,
     token_price: 2800,
     relative_portfolio_allocation: 32.1,
@@ -93,11 +51,11 @@ const generatePortfolioPositions = (): PortfolioPosition[] => [
 const generatePerformanceData = (timeRange: string, startTimestamp?: number): PerformanceDataPoint[] => {
   const now = Date.now()
   const points: PerformanceDataPoint[] = []
-  
+
   // Determine the time range and interval
   let days: number
   let interval: number // in milliseconds
-  
+
   switch (timeRange) {
     case "24h":
       days = 1
@@ -125,32 +83,40 @@ const generatePerformanceData = (timeRange: string, startTimestamp?: number): Pe
       interval = 24 * 60 * 60 * 1000 // 1 day
       break
   }
-  
-  // Fix: startTime should be in the past, endTime should be now
-  const startTime = startTimestamp ? startTimestamp * 1000 - (days * 24 * 60 * 60 * 1000) : now - (days * 24 * 60 * 60 * 1000)
+
+  // Calculate proper time range - start from past, end at present
   const endTime = startTimestamp ? startTimestamp * 1000 : now
-  
+  const startTime = endTime - (days * 24 * 60 * 60 * 1000)
+
   // Generate realistic performance data with some volatility
   let baseValue = 100000 // Starting portfolio value
   let currentValue = baseValue
-  
-  // Fix: loop from startTime (past) to endTime (present)
+
+  // Generate points from past to present
   for (let timestamp = startTime; timestamp <= endTime; timestamp += interval) {
     // Add some realistic market volatility
     const volatility = 0.02 // 2% max change per interval
     const randomChange = (Math.random() - 0.5) * 2 * volatility
     const trendFactor = 0.0001 // Slight upward trend over time
-    
+
     currentValue *= (1 + randomChange + trendFactor)
-    
+
+    // Ensure we're creating proper unix timestamps in seconds
+    const unixTimestamp = Math.floor(timestamp / 1000)
+
     points.push({
-      time: new Date(timestamp).toISOString().split('T')[0],
       value: Math.round(currentValue),
-      timestamp: Math.floor(timestamp / 1000),
+      timestamp: unixTimestamp, // This should be a proper unix timestamp in seconds
       portfolio_positions: generatePortfolioPositions()
     })
   }
-  
+
+  console.log("Generated points sample:", points.slice(0, 3).map(p => ({
+    timestamp: p.timestamp,
+    value: p.value,
+    portfolio_positions: JSON.stringify(p.portfolio_positions)
+  })))
+
   return points // Already in chronological order
 }
 
@@ -162,9 +128,9 @@ export async function fetchPerformanceData(timeRange: string = "7d"): Promise<{
   try {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500))
-    
+
     const data = generatePerformanceData(timeRange)
-    
+
     return {
       success: true,
       data
@@ -186,7 +152,7 @@ export async function fetchAgentStats(): Promise<{
   try {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200))
-    
+
     const data: AgentStats = {
       status: "ACTIVE",
       uptime: "72h 14m",
@@ -196,7 +162,7 @@ export async function fetchAgentStats(): Promise<{
       averageVolume: 45892,
       tvl: 2847563
     }
-    
+
     return {
       success: true,
       data
@@ -226,7 +192,7 @@ export async function fetchTradedAssets(): Promise<{
   try {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200))
-    
+
     const data: TradedAsset[] = [
       {
         name: "Bitcoin",
@@ -237,7 +203,7 @@ export async function fetchTradedAssets(): Promise<{
         image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/640px-Bitcoin.svg.png",
       },
       {
-        name: "Ethereum", 
+        name: "Ethereum",
         ticker: "ETH",
         allocation: 32.1,
         return: 8.2 + (Math.random() - 0.5) * 4,
@@ -246,7 +212,7 @@ export async function fetchTradedAssets(): Promise<{
       },
       {
         name: "Solana",
-        ticker: "SOL", 
+        ticker: "SOL",
         allocation: 18.7,
         return: -2.1 + (Math.random() - 0.5) * 3,
         tokenAddress: "So11111111111111111111111111111111111111112",
@@ -261,7 +227,7 @@ export async function fetchTradedAssets(): Promise<{
         image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Circle_USDC_Logo.svg/640px-Circle_USDC_Logo.svg.png",
       },
     ]
-    
+
     return {
       success: true,
       data
@@ -283,7 +249,7 @@ export async function fetchAgentLogs(limit: number = 10): Promise<{
   try {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 100))
-    
+
     const logMessages = [
       { message: "Analyzing market conditions...", status: "INFO", type: "SKILL_USE" },
       { message: "Opportunity detected: ETH/USDC spread 0.23%", status: "WARNING", type: "SKILL_USE" },
@@ -296,9 +262,9 @@ export async function fetchAgentLogs(limit: number = 10): Promise<{
       { message: "Price alert: BTC exceeded threshold", status: "WARNING", type: "DEFAULT" },
       { message: "Connection to DEX established", status: "SUCCESS", type: "DEFAULT" },
     ]
-    
+
     const data: LogEntry[] = []
-    
+
     for (let i = 0; i < limit; i++) {
       const randomLogData = logMessages[Math.floor(Math.random() * logMessages.length)]
       data.push({
@@ -309,7 +275,7 @@ export async function fetchAgentLogs(limit: number = 10): Promise<{
         created_at: new Date(Date.now() - i * 30000).toISOString(), // 30 seconds apart
       })
     }
-    
+
     return {
       success: true,
       data: data.reverse() // Return chronologically
@@ -331,7 +297,7 @@ export async function depositToAgent(amount: number): Promise<{
   try {
     // Simulate network delay for transaction
     await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000))
-    
+
     if (amount <= 0) {
       return {
         success: false,
@@ -339,10 +305,10 @@ export async function depositToAgent(amount: number): Promise<{
         error: "Amount must be greater than 0"
       }
     }
-    
+
     // Simulate random success/failure (95% success rate)
     const success = Math.random() > 0.05
-    
+
     if (success) {
       return {
         success: true,
@@ -372,18 +338,18 @@ export async function withdrawFromAgent(amount: number): Promise<{
   try {
     // Simulate network delay for transaction
     await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000))
-    
+
     if (amount <= 0) {
       return {
         success: false,
-        message: "Invalid amount", 
+        message: "Invalid amount",
         error: "Amount must be greater than 0"
       }
     }
-    
+
     // Simulate random success/failure (90% success rate for withdrawals)
     const success = Math.random() > 0.1
-    
+
     if (success) {
       return {
         success: true,
