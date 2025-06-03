@@ -2,10 +2,15 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'Paperhead',
+  description: 'Paperhead | AI Trading Agent',
+  generator: 'Paperhead',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/favicon.ico',
+  }
 }
+
 
 export default function RootLayout({
   children,
