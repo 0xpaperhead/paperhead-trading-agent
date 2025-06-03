@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-
+import { CSQueryClientProvider } from './_providers/QueryClient'
 export const metadata: Metadata = {
   title: 'Paperhead',
   description: 'Paperhead | AI Trading Agent',
@@ -19,7 +19,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <CSQueryClientProvider>
+          {children}
+        </CSQueryClientProvider>
+      </body>
     </html>
   )
 }
