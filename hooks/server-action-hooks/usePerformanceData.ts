@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { fetchPerformanceData } from "@/app/actions"
+import { fetchPerformanceData } from "@/app/_actions/performance-actions"
 
 // Constants
 const REFRESH_INTERVAL = 30000 // 30 seconds for performance data

@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { fetchAgentStats } from "@/app/actions"
+import { fetchAgentStats } from "@/app/_actions/agent-stats-actions"
 
 // Constants
 const REFRESH_INTERVAL = 10000 // 10 seconds for agent stats
