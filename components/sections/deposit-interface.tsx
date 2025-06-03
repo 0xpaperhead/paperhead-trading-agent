@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ArrowUpDown, Wallet } from "lucide-react"
-import { depositToAgent, withdrawFromAgent } from "@/app/actions"
 
 export function DepositInterface() {
   const [depositAmount, setDepositAmount] = useState("")
@@ -16,7 +15,9 @@ export function DepositInterface() {
 
     setIsDepositing(true)
     try {
-      const result = await depositToAgent(parseFloat(depositAmount))
+      // const result = await depositToAgent(parseFloat(depositAmount))
+      console.log("Deposit to agent:", parseFloat(depositAmount))
+      const result = { success: true }
 
       if (result.success) {
         setDepositAmount("")
@@ -34,7 +35,9 @@ export function DepositInterface() {
 
     setIsWithdrawing(true)
     try {
-      const result = await withdrawFromAgent(parseFloat(depositAmount))
+      // const result = await withdrawFromAgent(parseFloat(depositAmount))
+      console.log("Withdraw from agent:", parseFloat(depositAmount))
+      const result = { success: true }
 
       if (result.success) {
         setDepositAmount("")
