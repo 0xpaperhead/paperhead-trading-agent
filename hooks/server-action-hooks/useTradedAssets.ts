@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { fetchTradedAssets } from "@/app/actions"
-import { TradedAsset } from "@/types/types"
 
 // Constants
 const REFRESH_INTERVAL = 5000 // 5 seconds for traded assets (frequent updates)

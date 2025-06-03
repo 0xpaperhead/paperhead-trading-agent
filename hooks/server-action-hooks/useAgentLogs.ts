@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { fetchAgentLogs } from "@/app/actions"
-import { LogEntry } from "@/types/types"
 
 // Constants
 const REFRESH_INTERVAL = 5000 // 5 seconds for logs (frequent updates)
