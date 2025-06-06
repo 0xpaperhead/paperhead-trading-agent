@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { CSQueryClientProvider } from './_providers/QueryClient'
 import { CSDynamicContextProvider } from './_providers/DynamicClient'
+import { UserProvider } from '@/user-context'
+
 export const metadata: Metadata = {
   title: 'Paperhead',
   description: 'Paperhead | AI Trading Agent',
@@ -23,7 +25,9 @@ export default function RootLayout({
       <body>
         <CSDynamicContextProvider>
           <CSQueryClientProvider>
-            {children}
+            <UserProvider>
+              {children}
+            </UserProvider>
           </CSQueryClientProvider>
         </CSDynamicContextProvider>
       </body>
