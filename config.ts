@@ -11,6 +11,10 @@ const Config = {
         bearerToken: process.env.DYNAMIC_BEARER_TOKEN!,
         authSecret: process.env.DYNAMIC_AUTH_SECRET!,
     },
+    supabase: {
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    },
 }
 
 export default Config;
