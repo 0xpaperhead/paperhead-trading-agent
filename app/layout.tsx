@@ -3,6 +3,7 @@ import './globals.css'
 import { CSQueryClientProvider } from './_providers/QueryClient'
 import { CSDynamicContextProvider } from './_providers/DynamicClient'
 import { UserProvider } from '@/user-context'
+import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
   title: 'Paperhead',
@@ -30,6 +31,7 @@ export default function RootLayout({
             </UserProvider>
           </CSQueryClientProvider>
         </CSDynamicContextProvider>
+        <Toaster theme='dark' />
       </body>
     </html>
   )
