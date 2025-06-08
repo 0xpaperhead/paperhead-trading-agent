@@ -19,6 +19,11 @@ const Config = {
     solana: {
         connectionUrl: process.env.NEXT_PUBLIC_SOLANA_CONNECTION_URL!,
     },
+    encryption: {
+        salt: process.env.WALLET_ENCRYPTION_SALT!,
+        password: process.env.WALLET_ENCRYPTION_KEY!,
+        rounds: parseInt(process.env.WALLET_ENCRYPTION_ROUNDS!),
+    },
 }
 
 export default Config;
