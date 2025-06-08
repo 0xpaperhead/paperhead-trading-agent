@@ -13,6 +13,7 @@ import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createTransferInstruction,
 import { toast } from "sonner"
 import Config from "@/config"
 import { truncateAddress } from "@/lib/utils"
+import { useUser } from "@/user-context"
 
 // Types
 type TransactionStatus = "idle" | "confirming" | "confirmed" | "error"
@@ -137,6 +138,7 @@ export function DepositInterface() {
   // Get network and wallet information from Dynamic context
   const { network, primaryWallet } = useDynamicContext()
   const [networkType, setNetworkType] = useState<string>("Mainnet")
+  const { userData } = useUser();
 
   // State
   const [balance, setBalance] = useState<string>("")
@@ -260,6 +262,7 @@ export function DepositInterface() {
 
   // Handle deposit
   const handleDeposit = async () => {
+
     if (!primaryWallet || !isSolanaWallet(primaryWallet)) {
       setError("Please connect a Solana wallet")
       return
@@ -280,7 +283,8 @@ export function DepositInterface() {
 
       // For demo purposes, we'll use a placeholder destination address
       // In production, this should be your actual agent pool address
-      const toPublicKey = new PublicKey("11111111111111111111111111111112") // TODO: dynamically get the shared custodial pool address
+
+      const toPublicKey = new PublicKey(userData?.wallet_public_key || "");
 
       const fromTokenAccount = await getAssociatedTokenAddress(
         PAPERHEAD_MINT,
@@ -491,8 +495,8 @@ export function DepositInterface() {
         <Button
           className="w-full bg-green-900 hover:bg-green-800 text-green-300 border border-green-500"
           onClick={handleDeposit}
-          // disabled={isDepositing || isWithdrawing || !paperheadAmount || !!error || transactionStatus !== "idle"}
-          disabled={true}
+          disabled={isDepositing || isWithdrawing || !paperheadAmount || !!error || transactionStatus !== "idle"}
+          // disabled={true}
         >
           <Wallet className="w-4 h-4 mr-2" />
           {isDepositing || transactionStatus === "confirming" ? "DEPOSITING..." : "DEPOSIT TO AGENT"}

@@ -7,7 +7,7 @@ import { Database } from '@/types/db.extended';
 import { toast } from 'sonner';
 import fetchApi from './lib/fetch';
 
-type User = Database['public']['Tables']['users']['Row'];
+type User = Omit<Database['public']['Tables']['users']['Row'], 'encrypted_pkey'>;
 
 interface UserContextState {
     isLoading: boolean;
