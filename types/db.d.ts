@@ -9,24 +9,84 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agent_logs: {
+        Row: {
+          created_at: string | null
+          log_id: string
+          message: string
+          status: Database["public"]["Enums"]["log_status"]
+          type: Database["public"]["Enums"]["log_type"]
+          wallet_public_key: string
+        }
+        Insert: {
+          created_at?: string | null
+          log_id?: string
+          message: string
+          status: Database["public"]["Enums"]["log_status"]
+          type: Database["public"]["Enums"]["log_type"]
+          wallet_public_key: string
+        }
+        Update: {
+          created_at?: string | null
+          log_id?: string
+          message?: string
+          status?: Database["public"]["Enums"]["log_status"]
+          type?: Database["public"]["Enums"]["log_type"]
+          wallet_public_key?: string
+        }
+        Relationships: []
+      }
+      user_pools_logs: {
+        Row: {
+          created_at: string | null
+          log_id: string
+          message: string
+          status: Database["public"]["Enums"]["log_status"]
+          type: Database["public"]["Enums"]["log_type"]
+          wallet_public_key: string
+        }
+        Insert: {
+          created_at?: string | null
+          log_id?: string
+          message: string
+          status: Database["public"]["Enums"]["log_status"]
+          type: Database["public"]["Enums"]["log_type"]
+          wallet_public_key: string
+        }
+        Update: {
+          created_at?: string | null
+          log_id?: string
+          message?: string
+          status?: Database["public"]["Enums"]["log_status"]
+          type?: Database["public"]["Enums"]["log_type"]
+          wallet_public_key?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string
+          encrypted_pkey: string
           source: string | null
           updated_at: string
           wallet_address: string
+          wallet_public_key: string
         }
         Insert: {
           created_at?: string
+          encrypted_pkey?: string
           source?: string | null
           updated_at?: string
           wallet_address: string
+          wallet_public_key: string
         }
         Update: {
           created_at?: string
+          encrypted_pkey?: string
           source?: string | null
           updated_at?: string
           wallet_address?: string
+          wallet_public_key?: string
         }
         Relationships: []
       }
@@ -38,7 +98,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      log_status: "SUCCESS" | "DANGER" | "WARNING" | "INFO" | "SECONDARY"
+      log_type: "TRANSACTION" | "SKILL_USE" | "ERROR" | "DEFAULT"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -153,6 +214,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      log_status: ["SUCCESS", "DANGER", "WARNING", "INFO", "SECONDARY"],
+      log_type: ["TRANSACTION", "SKILL_USE", "ERROR", "DEFAULT"],
+    },
   },
 } as const
